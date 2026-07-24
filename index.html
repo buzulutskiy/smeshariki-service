@@ -235,9 +235,10 @@
 </style>
 </head>
 <body>
-<header>
+<header style="position: relative;">
   <h1>Смешарики<span>.</span> Каталог серий</h1>
   <div class="sub" id="subtitle">Все серии франшизы, разложенные по категориям</div>
+  <button id="settingsBtn" style="position: absolute; top: 20px; right: 24px; background: none; border: none; font-size: 20px; cursor: pointer; opacity: .6; transition: opacity .15s;" title="Синхронизация с GitHub">⚙️</button>
 </header>
 
 <div class="controls">
@@ -261,6 +262,38 @@
   <button class="random-btn" id="randomBtn">🎲 Случайная непросмотренная</button>
 </div>
 <div class="grid" id="grid"></div>
+
+<div class="overlay" id="settingsOverlay">
+  <div class="modal" id="settingsModal" style="max-width: 500px;">
+    <button class="close" id="closeSettingsBtn">✕</button>
+    <h2>⚙️ Синхронизация с GitHub</h2>
+    <p style="color: var(--muted); font-size: 14px; margin-bottom: 16px;">
+      Сохраняй отметки о просмотре на GitHub Gist и открывай их на любом устройстве.
+    </p>
+    <div style="display: flex; flex-direction: column; gap: 12px;">
+      <div>
+        <label style="font-size: 13px; font-weight: 600; display: block; margin-bottom: 6px;">GitHub Personal Access Token</label>
+        <input type="password" id="githubToken" placeholder="ghp_..." style="width: 100%; padding: 10px; border: 2px solid #e0d8ca; border-radius: 12px; font-size: 13px;">
+        <div style="font-size: 12px; color: var(--muted); margin-top: 4px;">
+          <a href="https://github.com/settings/tokens" target="_blank" style="color: var(--accent);">Создать токен</a> (нужен scope: gist)
+        </div>
+      </div>
+      <div>
+        <label style="font-size: 13px; font-weight: 600; display: block; margin-bottom: 6px;">Gist ID</label>
+        <input type="text" id="githubGistId" placeholder="28d2a8f110f0111e40562fa4752a6aae" style="width: 100%; padding: 10px; border: 2px solid #e0d8ca; border-radius: 12px; font-size: 13px;">
+        <div style="font-size: 12px; color: var(--muted); margin-top: 4px;">
+          Последняя часть URL приватного Gist'а
+        </div>
+      </div>
+      <button id="saveGithubBtn" style="background: var(--accent); color: #fff; border: none; padding: 12px; border-radius: 12px; font-weight: 600; cursor: pointer; margin-top: 8px;">
+        Сохранить и синхронизировать
+      </button>
+      <button id="clearGithubBtn" style="background: transparent; color: var(--muted); border: 2px solid #e0d8ca; padding: 10px; border-radius: 12px; cursor: pointer; font-weight: 600;">
+        Отключить синхронизацию
+      </button>
+    </div>
+  </div>
+</div>
 
 <div class="overlay" id="overlay">
   <div class="modal" id="modal">
@@ -288,15 +321,50 @@ function saveState() {
   localStorage.setItem(SKEY, JSON.stringify({cat: state.cat, q: state.q, series: state.series, sort: state.sort, watched: state.watched}));
 }
 
-// watched marks — persist in localStorage
+// watched marks — persist in localStorage + sync to GitHub Gist
 const WKEY = "smeshariki-watched";
+const GKEY = "smeshariki-github";
 let watched = new Set(JSON.parse(localStorage.getItem(WKEY) || "[]"));
+let github = JSON.parse(localStorage.getItem(GKEY) || "{}"); // {token, gistId}
+
 function epKey(e) { return `${e.series}|${e.num}|${e.title}`; }
 function isWatched(e) { return watched.has(epKey(e)); }
+
+async function syncToGist() {
+  if (!github.token || !github.gistId) return;
+  try {
+    const res = await fetch(`https://api.github.com/gists/${github.gistId}`, {
+      method: 'PATCH',
+      headers: { 'Authorization': `token ${github.token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        files: { 'smeshariki-watched.json': { content: JSON.stringify([...watched]) } }
+      })
+    });
+    if (!res.ok) console.warn('Gist sync failed:', res.status);
+  } catch (e) { console.warn('Gist sync error:', e.message); }
+}
+
+async function loadFromGist() {
+  if (!github.token || !github.gistId) return;
+  try {
+    const res = await fetch(`https://api.github.com/gists/${github.gistId}`, {
+      headers: { 'Authorization': `token ${github.token}` }
+    });
+    if (!res.ok) return;
+    const data = await res.json();
+    const content = data.files['smeshariki-watched.json']?.content;
+    if (content) {
+      watched = new Set(JSON.parse(content));
+      localStorage.setItem(WKEY, JSON.stringify([...watched]));
+    }
+  } catch (e) { console.warn('Gist load error:', e.message); }
+}
+
 function toggleWatched(e) {
   const k = epKey(e);
   watched.has(k) ? watched.delete(k) : watched.add(k);
   localStorage.setItem(WKEY, JSON.stringify([...watched]));
+  syncToGist();
 }
 
 const chipsEl = document.getElementById("chips");
@@ -450,7 +518,54 @@ document.addEventListener("keydown", ev => { if (ev.key === "Escape") closeModal
 
 document.getElementById("subtitle").textContent =
   `${EPS.length} серий франшизы, разложенных по ${CATS.length} категориям`;
-render();
+
+// GitHub Gist sync UI
+const settingsOverlay = document.getElementById("settingsOverlay");
+const settingsModal = document.getElementById("settingsModal");
+document.getElementById("settingsBtn").onclick = () => {
+  document.getElementById("githubToken").value = github.token || "";
+  document.getElementById("githubGistId").value = github.gistId || "";
+  settingsOverlay.classList.add("open");
+  document.body.style.overflow = "hidden";
+};
+document.getElementById("closeSettingsBtn").onclick = () => {
+  settingsOverlay.classList.remove("open");
+  document.body.style.overflow = "";
+};
+settingsOverlay.onclick = (e) => {
+  if (e.target === settingsOverlay) {
+    settingsOverlay.classList.remove("open");
+    document.body.style.overflow = "";
+  }
+};
+
+document.getElementById("saveGithubBtn").onclick = async () => {
+  const token = document.getElementById("githubToken").value.trim();
+  const gistId = document.getElementById("githubGistId").value.trim();
+  if (!token || !gistId) { alert("Заполни оба поля"); return; }
+  github = { token, gistId };
+  localStorage.setItem(GKEY, JSON.stringify(github));
+  await loadFromGist();
+  render();
+  alert("Сохранено! Отметки загружены с гиста.");
+  settingsOverlay.classList.remove("open");
+  document.body.style.overflow = "";
+};
+
+document.getElementById("clearGithubBtn").onclick = () => {
+  github = {};
+  localStorage.removeItem(GKEY);
+  alert("Синхронизация отключена.");
+  settingsOverlay.classList.remove("open");
+  document.body.style.overflow = "";
+};
+
+// load from gist on init
+(async () => {
+  if (github.token && github.gistId) await loadFromGist();
+  render();
+})();
+
 </script>
 </body>
 </html>
