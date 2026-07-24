@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Смешарики — каталог серий по категориям</title>
+<style>
+  :root {
+    --bg: #faf6ef;
+    --card: #ffffff;
+    --ink: #2d2a26;
+    --muted: #8a8378;
+    --accent: #ff8a3d;
+    --chip-bg: #f0e9dd;
+    --shadow: 0 2px 10px rgba(60,45,20,.08);
+    --radius: 20px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, "SF Pro Text", "Segoe UI", Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+    line-height: 1.5;
+  }
+  header {
+    padding: 28px 24px 12px;
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+  h1 { font-size: 26px; font-weight: 800; letter-spacing: -.3px; }
+  h1 span { color: var(--accent); }
+  .sub { color: var(--muted); font-size: 14px; margin-top: 4px; }
+
+  .controls {
+    max-width: 1200px;
+    margin: 14px auto 0;
+    padding: 0 24px;
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+  .search {
+    flex: 1 1 260px;
+    padding: 10px 16px;
+    border: 2px solid #e7dfd2;
+    border-radius: 999px;
+    font-size: 15px;
+    background: var(--card);
+    outline: none;
+    transition: border-color .15s;
+  }
+  .search:focus { border-color: var(--accent); }
+  select {
+    padding: 10px 14px;
+    border: 2px solid #e7dfd2;
+    border-radius: 999px;
+    font-size: 14px;
+    background: var(--card);
+    color: var(--ink);
+    outline: none;
+    cursor: pointer;
+  }
+  .chips {
+    max-width: 1200px;
+    margin: 14px auto 0;
+    padding: 0 24px;
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .chip {
+    border: none;
+    background: var(--chip-bg);
+    color: var(--ink);
+    padding: 8px 14px;
+    border-radius: 999px;
+    font-size: 13.5px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: transform .1s, background .15s, color .15s;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .chip:hover { transform: translateY(-1px); }
+  .chip.active { background: var(--ink); color: #fff; }
+  .chip .n {
+    font-size: 11.5px;
+    font-weight: 700;
+    opacity: .55;
+  }
+  .meta-line {
+    max-width: 1200px;
+    margin: 16px auto 0;
+    padding: 0 24px;
+    color: var(--muted);
+    font-size: 13.5px;
+  }
+  .grid {
+    max-width: 1200px;
+    margin: 14px auto 60px;
+    padding: 0 24px;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(310px, 1fr));
+    gap: 16px;
+  }
+  .card {
+    background: var(--card);
+    border-radius: var(--radius);
+    padding: 18px 18px 16px;
+    box-shadow: var(--shadow);
+    cursor: pointer;
+    transition: transform .12s, box-shadow .12s;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .card:hover { transform: translateY(-3px); box-shadow: 0 8px 22px rgba(60,45,20,.13); }
+  .card h3 { font-size: 16.5px; font-weight: 700; letter-spacing: -.2px; }
+  .card .info { font-size: 12.5px; color: var(--muted); }
+  .card p {
+    font-size: 13.5px;
+    color: #57524a;
+    display: -webkit-box;
+    -webkit-line-clamp: 4;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .essence { display: flex; flex-direction: column; gap: 5px; font-size: 13.5px; }
+  .ess-line { color: #57524a; }
+  .ess-line b { font-weight: 700; color: var(--ink); }
+  .modal .essence { margin-bottom: 16px; padding: 14px 16px; background: var(--chip-bg); border-radius: 14px; font-size: 14px; }
+  .tags { display: flex; gap: 6px; flex-wrap: wrap; margin-top: auto; padding-top: 6px; }
+  .tag {
+    font-size: 11.5px;
+    font-weight: 600;
+    padding: 3px 9px;
+    border-radius: 999px;
+    background: var(--chip-bg);
+    color: #6b6459;
+  }
+  .tag.primary { background: var(--accent); color: #fff; }
+
+  /* watched */
+  .watch-btn {
+    position: absolute;
+    top: 14px; right: 14px;
+    width: 30px; height: 30px;
+    border-radius: 50%;
+    border: 2px solid #e0d8ca;
+    background: var(--card);
+    color: transparent;
+    font-size: 15px;
+    line-height: 1;
+    cursor: pointer;
+    transition: all .15s;
+    display: flex; align-items: center; justify-content: center;
+    padding: 0;
+  }
+  .watch-btn:hover { border-color: #35b46f; color: #b9e3cc; }
+  .card { position: relative; }
+  .card h3 { padding-right: 34px; }
+  .card.watched .watch-btn, .modal .watch-btn.on {
+    background: #35b46f; border-color: #35b46f; color: #fff;
+  }
+  .card.watched { opacity: .62; }
+  .card.watched:hover { opacity: 1; }
+  .modal .watch-btn { position: static; width: auto; height: auto; border-radius: 999px; padding: 8px 16px; font-size: 13.5px; font-weight: 600; color: var(--muted); margin-bottom: 16px; }
+  .modal .watch-btn.on { color: #fff; }
+
+  /* modal */
+  .overlay {
+    position: fixed; inset: 0;
+    background: rgba(40,32,20,.45);
+    display: none;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 40px 16px;
+    z-index: 10;
+    overflow-y: auto;
+  }
+  .overlay.open { display: flex; }
+  .modal {
+    background: var(--card);
+    border-radius: 24px;
+    max-width: 700px;
+    width: 100%;
+    padding: 30px 32px;
+    position: relative;
+    box-shadow: 0 20px 60px rgba(0,0,0,.25);
+  }
+  .modal h2 { font-size: 22px; margin-bottom: 4px; letter-spacing: -.3px; }
+  .modal .info { color: var(--muted); font-size: 13.5px; margin-bottom: 14px; }
+  .modal .tags { margin: 0 0 16px; padding: 0; }
+  .modal p { font-size: 15px; white-space: pre-wrap; color: #453f37; }
+  .close {
+    position: absolute; top: 16px; right: 16px;
+    border: none; background: var(--chip-bg);
+    width: 34px; height: 34px; border-radius: 50%;
+    font-size: 16px; cursor: pointer; color: var(--ink);
+  }
+  .empty { text-align: center; color: var(--muted); padding: 60px 0; grid-column: 1/-1; font-size: 15px; }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #1c1a17;
+      --card: #26231f;
+      --ink: #f0ebe2;
+      --muted: #9a9184;
+      --chip-bg: #35312a;
+      --shadow: 0 2px 10px rgba(0,0,0,.35);
+    }
+    .search, select { border-color: #3d382f; color: var(--ink); }
+    .card p { color: #b8b0a3; }
+    .tag { color: #b8b0a3; }
+    .modal p { color: #cfc7ba; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>Смешарики<span>.</span> Каталог серий</h1>
+  <div class="sub" id="subtitle">Все серии франшизы, разложенные по категориям</div>
+</header>
+
+<div class="controls">
+  <input class="search" id="search" type="search" placeholder="Поиск по названию и синопсису…">
+  <select id="seriesFilter"><option value="">Все сериалы</option></select>
+  <select id="sortOrder">
+    <option value="date">По дате выхода</option>
+    <option value="default">По номеру серии</option>
+    <option value="title">По алфавиту</option>
+  </select>
+  <select id="watchedFilter">
+    <option value="">Все серии</option>
+    <option value="yes">Просмотренные</option>
+    <option value="no">Непросмотренные</option>
+  </select>
+</div>
+
+<div class="chips" id="chips"></div>
+<div class="meta-line" id="counter"></div>
+<div class="grid" id="grid"></div>
+
+<div class="overlay" id="overlay">
+  <div class="modal" id="modal">
+    <button class="close" id="closeBtn">✕</button>
+    <h2 id="mTitle"></h2>
+    <div class="info" id="mInfo"></div>
+    <div class="tags" id="mTags"></div>
+    <button class="watch-btn" id="mWatch"></button>
+    <div id="mEssence"></div>
+    <p id="mPlot"></p>
+  </div>
+</div>
+
+<script src="data.js"></script>
+<script>
+const CATS = window.CATEGORIES;
+const EPS = window.EPISODES;
+
+// load persisted state from localStorage
+const SKEY = "smeshariki-state";
+const saved = JSON.parse(localStorage.getItem(SKEY) || "{}");
+const state = { cat: saved.cat || "", q: saved.q || "", series: saved.series || "", sort: saved.sort || "date", watched: saved.watched || "" };
+
+function saveState() {
+  localStorage.setItem(SKEY, JSON.stringify({cat: state.cat, q: state.q, series: state.series, sort: state.sort, watched: state.watched}));
+}
+
+// watched marks — persist in localStorage
+const WKEY = "smeshariki-watched";
+let watched = new Set(JSON.parse(localStorage.getItem(WKEY) || "[]"));
+function epKey(e) { return `${e.series}|${e.num}|${e.title}`; }
+function isWatched(e) { return watched.has(epKey(e)); }
+function toggleWatched(e) {
+  const k = epKey(e);
+  watched.has(k) ? watched.delete(k) : watched.add(k);
+  localStorage.setItem(WKEY, JSON.stringify([...watched]));
+}
+
+const chipsEl = document.getElementById("chips");
+const gridEl = document.getElementById("grid");
+const counterEl = document.getElementById("counter");
+const searchEl = document.getElementById("search");
+const seriesEl = document.getElementById("seriesFilter");
+const sortEl = document.getElementById("sortOrder");
+
+// category chips
+function catCount(cid) { return EPS.filter(e => e.cats.includes(cid)).length; }
+const allChip = document.createElement("button");
+allChip.className = "chip" + (!state.cat ? " active" : "");
+allChip.innerHTML = `Все <span class="n">${EPS.length}</span>`;
+allChip.onclick = () => { state.cat = ""; saveState(); render(); };
+chipsEl.appendChild(allChip);
+for (const c of CATS) {
+  const b = document.createElement("button");
+  b.className = "chip" + (state.cat === c.id ? " active" : "");
+  b.dataset.cat = c.id;
+  b.innerHTML = `${c.emoji} ${c.name} <span class="n">${catCount(c.id)}</span>`;
+  b.onclick = () => { state.cat = state.cat === c.id ? "" : c.id; saveState(); render(); };
+  chipsEl.appendChild(b);
+}
+
+// series dropdown
+const seriesNames = [...new Set(EPS.map(e => e.series))].filter(Boolean);
+for (const s of seriesNames) {
+  const o = document.createElement("option");
+  o.value = s; o.textContent = s;
+  seriesEl.appendChild(o);
+}
+seriesEl.value = state.series;
+seriesEl.onchange = () => { state.series = seriesEl.value; saveState(); render(); };
+const watchedEl = document.getElementById("watchedFilter");
+watchedEl.value = state.watched;
+watchedEl.onchange = () => { state.watched = watchedEl.value; saveState(); render(); };
+sortEl.value = state.sort;
+sortEl.onchange = () => { state.sort = sortEl.value; saveState(); render(); };
+searchEl.value = state.q;
+searchEl.oninput = () => { state.q = searchEl.value.trim().toLowerCase(); saveState(); render(); };
+
+function catById(id) { return CATS.find(c => c.id === id); }
+
+function essenceHTML(e) {
+  if (!e.th || !e.th.length) return "";
+  let out = `<span class="ess-line">🧩 <b>Темы:</b> ${e.th.join(", ")}</span>`;
+  if (e.ref) out += `<span class="ess-line">📖 <b>Отсылка:</b> ${e.ref}</span>`;
+  if (e.adult) out += `<span class="ess-line">🧭 <b>По-взрослому:</b> ${e.adult}</span>`;
+  return `<div class="essence">${out}</div>`;
+}
+
+function filtered() {
+  let list = EPS;
+  if (state.cat) list = list.filter(e => e.cats.includes(state.cat));
+  if (state.series) list = list.filter(e => e.series === state.series);
+  if (state.q) list = list.filter(e =>
+    e.title.toLowerCase().includes(state.q) || e.plot.toLowerCase().includes(state.q) ||
+    (e.th || []).some(t => t.toLowerCase().includes(state.q)) ||
+    (e.ref || "").toLowerCase().includes(state.q) ||
+    (e.adult || "").toLowerCase().includes(state.q));
+  if (state.watched === "yes") list = list.filter(isWatched);
+  if (state.watched === "no") list = list.filter(e => !isWatched(e));
+  list = [...list];
+  if (state.sort === "title") list.sort((a,b) => a.title.localeCompare(b.title, "ru"));
+  else if (state.sort === "date") list.sort((a,b) => a.ts - b.ts);
+  // просмотренные опускаются в конец (стабильно, внутри своего порядка)
+  list.sort((a,b) => (isWatched(a) ? 1 : 0) - (isWatched(b) ? 1 : 0));
+  return list;
+}
+
+function render() {
+  document.querySelectorAll(".chip").forEach(ch => {
+    ch.classList.toggle("active", (ch.dataset.cat || "") === state.cat);
+  });
+  const list = filtered();
+  counterEl.textContent = `Показано серий: ${list.length} · просмотрено ${watched.size} из ${EPS.length}`;
+  gridEl.innerHTML = "";
+  if (!list.length) {
+    gridEl.innerHTML = `<div class="empty">Ничего не нашлось — попробуй другую категорию или запрос</div>`;
+    return;
+  }
+  const frag = document.createDocumentFragment();
+  for (const e of list) {
+    const card = document.createElement("div");
+    card.className = "card" + (isWatched(e) ? " watched" : "");
+    const info = [e.series, e.num ? `серия ${e.num}` : "", e.date].filter(Boolean).join(" · ");
+    card.innerHTML = `
+      <button class="watch-btn" title="Отметить просмотренной">✓</button>
+      <h3>${e.title}</h3>
+      <div class="info">${info}</div>
+      ${essenceHTML(e) || `<p>${e.plot}</p>`}
+      <div class="tags">${e.cats.map((c,i) => {
+        const cat = catById(c);
+        return cat ? `<span class="tag ${i===0?"primary":""}">${cat.emoji} ${cat.name}</span>` : "";
+      }).join("")}</div>`;
+    card.querySelector(".watch-btn").onclick = ev => {
+      ev.stopPropagation();
+      toggleWatched(e);
+      render();
+    };
+    card.onclick = () => openModal(e);
+    frag.appendChild(card);
+  }
+  gridEl.appendChild(frag);
+}
+
+// modal
+const overlay = document.getElementById("overlay");
+function openModal(e) {
+  document.getElementById("mTitle").textContent = e.title;
+  document.getElementById("mInfo").textContent =
+    [e.series, e.num ? `серия ${e.num}` : "", e.date].filter(Boolean).join(" · ");
+  document.getElementById("mTags").innerHTML = e.cats.map((c,i) => {
+    const cat = catById(c);
+    return cat ? `<span class="tag ${i===0?"primary":""}">${cat.emoji} ${cat.name}</span>` : "";
+  }).join("");
+  document.getElementById("mEssence").innerHTML = essenceHTML(e);
+  document.getElementById("mPlot").textContent = e.plot;
+  const mw = document.getElementById("mWatch");
+  function paintWatch() {
+    const on = isWatched(e);
+    mw.classList.toggle("on", on);
+    mw.textContent = on ? "✓ Просмотрено" : "Отметить просмотренной";
+  }
+  paintWatch();
+  mw.onclick = () => { toggleWatched(e); paintWatch(); render(); };
+  overlay.classList.add("open");
+  document.body.style.overflow = "hidden";
+}
+function closeModal() { overlay.classList.remove("open"); document.body.style.overflow = ""; }
+document.getElementById("closeBtn").onclick = closeModal;
+overlay.onclick = ev => { if (ev.target === overlay) closeModal(); };
+document.addEventListener("keydown", ev => { if (ev.key === "Escape") closeModal(); });
+
+document.getElementById("subtitle").textContent =
+  `${EPS.length} серий франшизы, разложенных по ${CATS.length} категориям`;
+render();
+</script>
+</body>
+</html>
