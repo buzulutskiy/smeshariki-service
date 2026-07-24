@@ -263,6 +263,16 @@
 </div>
 <div class="grid" id="grid"></div>
 
+<div class="overlay" id="pollOverlay">
+  <div class="modal" style="max-width: 400px; text-align: center;">
+    <p style="font-size: 18px; font-weight: 700; margin-bottom: 20px;" id="pollTitle"></p>
+    <div style="display: flex; gap: 12px; justify-content: center;">
+      <button id="likeBtn" style="background: var(--accent); color: #fff; border: none; padding: 12px 24px; border-radius: 12px; font-weight: 600; cursor: pointer; font-size: 16px;"></button>
+      <button id="pollSkipBtn" style="background: transparent; border: 2px solid #e0d8ca; color: var(--ink); padding: 10px 20px; border-radius: 12px; font-weight: 600; cursor: pointer;">Пропустить</button>
+    </div>
+  </div>
+</div>
+
 <div class="overlay" id="settingsOverlay">
   <div class="modal" id="settingsModal" style="max-width: 500px;">
     <button class="close" id="closeSettingsBtn">✕</button>
@@ -301,7 +311,10 @@
     <h2 id="mTitle"></h2>
     <div class="info" id="mInfo"></div>
     <div class="tags" id="mTags"></div>
-    <button class="watch-btn" id="mWatch"></button>
+    <div style="display: flex; gap: 10px; margin-bottom: 16px;">
+      <button class="watch-btn" id="mWatch"></button>
+      <button id="mLike" style="flex: 1; border: 2px solid #e0d8ca; background: transparent; color: var(--ink); padding: 8px 16px; border-radius: 999px; font-size: 14px; font-weight: 600; cursor: pointer; transition: all .15s;">💭 Зацепила?</button>
+    </div>
     <div id="mEssence"></div>
     <p id="mPlot"></p>
   </div>
@@ -321,14 +334,24 @@ function saveState() {
   localStorage.setItem(SKEY, JSON.stringify({cat: state.cat, q: state.q, series: state.series, sort: state.sort, watched: state.watched}));
 }
 
-// watched marks — persist in localStorage + sync to GitHub Gist
+// watched marks + likes — persist in localStorage + sync to GitHub Gist
 const WKEY = "smeshariki-watched";
+const LKEY = "smeshariki-liked";
 const GKEY = "smeshariki-github";
 let watched = new Set(JSON.parse(localStorage.getItem(WKEY) || "[]"));
+let liked = new Set(JSON.parse(localStorage.getItem(LKEY) || "[]"));
 let github = JSON.parse(localStorage.getItem(GKEY) || "{}"); // {token, gistId}
+let lastToggled = null; // для быстрого опроса
 
 function epKey(e) { return `${e.series}|${e.num}|${e.title}`; }
 function isWatched(e) { return watched.has(epKey(e)); }
+function isLiked(e) { return liked.has(epKey(e)); }
+function toggleLike(e) {
+  const k = epKey(e);
+  liked.has(k) ? liked.delete(k) : liked.add(k);
+  localStorage.setItem(LKEY, JSON.stringify([...liked]));
+  syncToGist();
+}
 
 async function syncToGist() {
   if (!github.token || !github.gistId) return;
@@ -337,7 +360,10 @@ async function syncToGist() {
       method: 'PATCH',
       headers: { 'Authorization': `token ${github.token}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        files: { 'smeshariki-watched.json': { content: JSON.stringify([...watched]) } }
+        files: {
+          'smeshariki-watched.json': { content: JSON.stringify([...watched]) },
+          'smeshariki-liked.json': { content: JSON.stringify([...liked]) }
+        }
       })
     });
     if (!res.ok) console.warn('Gist sync failed:', res.status);
@@ -352,19 +378,49 @@ async function loadFromGist() {
     });
     if (!res.ok) return;
     const data = await res.json();
-    const content = data.files['smeshariki-watched.json']?.content;
-    if (content) {
-      watched = new Set(JSON.parse(content));
+    const wContent = data.files['smeshariki-watched.json']?.content;
+    const lContent = data.files['smeshariki-liked.json']?.content;
+    if (wContent) {
+      watched = new Set(JSON.parse(wContent));
       localStorage.setItem(WKEY, JSON.stringify([...watched]));
+    }
+    if (lContent) {
+      liked = new Set(JSON.parse(lContent));
+      localStorage.setItem(LKEY, JSON.stringify([...liked]));
     }
   } catch (e) { console.warn('Gist load error:', e.message); }
 }
 
 function toggleWatched(e) {
   const k = epKey(e);
-  watched.has(k) ? watched.delete(k) : watched.add(k);
+  const wasWatched = watched.has(k);
+  wasWatched ? watched.delete(k) : watched.add(k);
   localStorage.setItem(WKEY, JSON.stringify([...watched]));
   syncToGist();
+  // if just marked as watched, ask if they liked it
+  if (!wasWatched && watched.has(k)) {
+    lastToggled = e;
+    openQuickPoll(e);
+  }
+}
+
+function openQuickPoll(e) {
+  const k = epKey(e);
+  document.getElementById("pollTitle").textContent = `«${e.title}» зацепила?`;
+  const likeBtn = document.getElementById("likeBtn");
+  likeBtn.textContent = isLiked(e) ? "❤️ Зацепила!" : "💭 Зацепила?";
+  document.getElementById("pollOverlay").classList.add("open");
+  document.body.style.overflow = "hidden";
+  likeBtn.onclick = () => {
+    toggleLike(e);
+    document.getElementById("pollOverlay").classList.remove("open");
+    document.body.style.overflow = "";
+    render();
+  };
+  document.getElementById("pollSkipBtn").onclick = () => {
+    document.getElementById("pollOverlay").classList.remove("open");
+    document.body.style.overflow = "";
+  };
 }
 
 const chipsEl = document.getElementById("chips");
@@ -468,9 +524,10 @@ function render() {
     const card = document.createElement("div");
     card.className = "card" + (isWatched(e) ? " watched" : "");
     const info = [e.series, e.num ? `серия ${e.num}` : "", e.date].filter(Boolean).join(" · ");
+    const likeIcon = isLiked(e) ? " ❤️" : "";
     card.innerHTML = `
       <button class="watch-btn" title="Отметить просмотренной">✓</button>
-      <h3>${e.title}</h3>
+      <h3>${e.title}${likeIcon}</h3>
       <div class="info">${info}</div>
       ${essenceHTML(e) || `<p>${e.plot}</p>`}
       <div class="tags">${e.cats.map((c,i) => {
@@ -491,7 +548,8 @@ function render() {
 // modal
 const overlay = document.getElementById("overlay");
 function openModal(e) {
-  document.getElementById("mTitle").textContent = e.title;
+  const likeIcon = isLiked(e) ? " ❤️" : "";
+  document.getElementById("mTitle").textContent = e.title + likeIcon;
   document.getElementById("mInfo").textContent =
     [e.series, e.num ? `серия ${e.num}` : "", e.date].filter(Boolean).join(" · ");
   document.getElementById("mTags").innerHTML = e.cats.map((c,i) => {
@@ -501,13 +559,23 @@ function openModal(e) {
   document.getElementById("mEssence").innerHTML = essenceHTML(e);
   document.getElementById("mPlot").textContent = e.plot;
   const mw = document.getElementById("mWatch");
+  const ml = document.getElementById("mLike");
   function paintWatch() {
     const on = isWatched(e);
     mw.classList.toggle("on", on);
     mw.textContent = on ? "✓ Просмотрено" : "Отметить просмотренной";
   }
+  function paintLike() {
+    const liked = isLiked(e);
+    ml.style.borderColor = liked ? "var(--accent)" : "#e0d8ca";
+    ml.style.background = liked ? "#ffe0cc" : "transparent";
+    ml.style.color = liked ? "var(--accent)" : "var(--ink)";
+    ml.textContent = liked ? "❤️ Зацепила!" : "💭 Зацепила?";
+  }
   paintWatch();
+  paintLike();
   mw.onclick = () => { toggleWatched(e); paintWatch(); render(); };
+  ml.onclick = () => { toggleLike(e); paintLike(); render(); };
   overlay.classList.add("open");
   document.body.style.overflow = "hidden";
 }
