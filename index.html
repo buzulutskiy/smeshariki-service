@@ -96,7 +96,23 @@
     padding: 0 24px;
     color: var(--muted);
     font-size: 13.5px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
   }
+  .random-btn {
+    border: none;
+    background: var(--accent);
+    color: #fff;
+    padding: 8px 16px;
+    border-radius: 999px;
+    font-size: 13.5px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: transform .1s, opacity .15s;
+  }
+  .random-btn:hover { transform: translateY(-1px); opacity: .9; }
+  .random-btn:disabled { opacity: .5; cursor: not-allowed; }
   .grid {
     max-width: 1200px;
     margin: 14px auto 60px;
@@ -240,7 +256,10 @@
 </div>
 
 <div class="chips" id="chips"></div>
-<div class="meta-line" id="counter"></div>
+<div class="meta-line">
+  <span id="counter"></span>
+  <button class="random-btn" id="randomBtn">🎲 Случайная непросмотренная</button>
+</div>
 <div class="grid" id="grid"></div>
 
 <div class="overlay" id="overlay">
@@ -315,6 +334,16 @@ seriesEl.onchange = () => { state.series = seriesEl.value; saveState(); render()
 const watchedEl = document.getElementById("watchedFilter");
 watchedEl.value = state.watched;
 watchedEl.onchange = () => { state.watched = watchedEl.value; saveState(); render(); };
+
+// random button
+document.getElementById("randomBtn").onclick = () => {
+  let list = EPS;
+  if (state.cat) list = list.filter(e => e.cats.includes(state.cat));
+  list = list.filter(e => !isWatched(e));
+  if (!list.length) { alert("Нет непросмотренных серий в этой категории!"); return; }
+  const random = list[Math.floor(Math.random() * list.length)];
+  openModal(random);
+};
 sortEl.value = state.sort;
 sortEl.onchange = () => { state.sort = sortEl.value; saveState(); render(); };
 searchEl.value = state.q;
@@ -355,6 +384,12 @@ function render() {
   });
   const list = filtered();
   counterEl.textContent = `Показано серий: ${list.length} · просмотрено ${watched.size} из ${EPS.length}`;
+  // update random button
+  let unwatched = EPS;
+  if (state.cat) unwatched = unwatched.filter(e => e.cats.includes(state.cat));
+  unwatched = unwatched.filter(e => !isWatched(e));
+  document.getElementById("randomBtn").disabled = !unwatched.length;
+  document.getElementById("randomBtn").title = unwatched.length ? "" : "Все серии в этой категории просмотрены";
   gridEl.innerHTML = "";
   if (!list.length) {
     gridEl.innerHTML = `<div class="empty">Ничего не нашлось — попробуй другую категорию или запрос</div>`;
