@@ -328,10 +328,10 @@ const EPS = window.EPISODES;
 // load persisted state from localStorage
 const SKEY = "smeshariki-state";
 const saved = JSON.parse(localStorage.getItem(SKEY) || "{}");
-const state = { cat: saved.cat || "", q: saved.q || "", series: saved.series || "", sort: saved.sort || "date", watched: saved.watched || "" };
+const state = { cat: saved.cat || "", q: saved.q || "", series: saved.series || "", sort: saved.sort || "date", watched: saved.watched || "", liked: saved.liked || false };
 
 function saveState() {
-  localStorage.setItem(SKEY, JSON.stringify({cat: state.cat, q: state.q, series: state.series, sort: state.sort, watched: state.watched}));
+  localStorage.setItem(SKEY, JSON.stringify({cat: state.cat, q: state.q, series: state.series, sort: state.sort, watched: state.watched, liked: state.liked}));
 }
 
 // watched marks + likes — persist in localStorage + sync to GitHub Gist
@@ -432,11 +432,19 @@ const sortEl = document.getElementById("sortOrder");
 
 // category chips
 function catCount(cid) { return EPS.filter(e => e.cats.includes(cid)).length; }
+const likedCount = () => EPS.filter(isLiked).length;
+
 const allChip = document.createElement("button");
 allChip.className = "chip" + (!state.cat ? " active" : "");
 allChip.innerHTML = `Все <span class="n">${EPS.length}</span>`;
 allChip.onclick = () => { state.cat = ""; saveState(); render(); };
 chipsEl.appendChild(allChip);
+
+const likedChip = document.createElement("button");
+likedChip.className = "chip" + (state.liked ? " active" : "");
+likedChip.innerHTML = `❤️ Любимые <span class="n">${likedCount()}</span>`;
+likedChip.onclick = () => { state.liked = !state.liked; state.cat = ""; saveState(); render(); };
+chipsEl.appendChild(likedChip);
 for (const c of CATS) {
   const b = document.createElement("button");
   b.className = "chip" + (state.cat === c.id ? " active" : "");
@@ -485,6 +493,7 @@ function essenceHTML(e) {
 
 function filtered() {
   let list = EPS;
+  if (state.liked) list = list.filter(isLiked);  // фильтр по лайкам
   if (state.cat) list = list.filter(e => e.cats.includes(state.cat));
   if (state.series) list = list.filter(e => e.series === state.series);
   if (state.q) list = list.filter(e =>
