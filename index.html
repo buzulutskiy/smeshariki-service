@@ -334,17 +334,20 @@ function saveState() {
   localStorage.setItem(SKEY, JSON.stringify({cat: state.cat, q: state.q, series: state.series, sort: state.sort, watched: state.watched, liked: state.liked}));
 }
 
-// watched marks + likes — persist in localStorage + sync to GitHub Gist
+// watched marks + likes + dates — persist in localStorage + sync to GitHub Gist
 const WKEY = "smeshariki-watched";
+const DKEY = "smeshariki-watched-dates";
 const LKEY = "smeshariki-liked";
 const GKEY = "smeshariki-github";
 let watched = new Set(JSON.parse(localStorage.getItem(WKEY) || "[]"));
+let watched_dates = JSON.parse(localStorage.getItem(DKEY) || "{}"); // {"key": "2026-07-24"}
 let liked = new Set(JSON.parse(localStorage.getItem(LKEY) || "[]"));
 let github = JSON.parse(localStorage.getItem(GKEY) || "{}"); // {token, gistId}
 let lastToggled = null; // для быстрого опроса
 
 function epKey(e) { return `${e.series}|${e.num}|${e.title}`; }
 function isWatched(e) { return watched.has(epKey(e)); }
+function getWatchedDate(e) { return watched_dates[epKey(e)] || null; }
 function isLiked(e) { return liked.has(epKey(e)); }
 function toggleLike(e) {
   const k = epKey(e);
@@ -362,6 +365,7 @@ async function syncToGist() {
       body: JSON.stringify({
         files: {
           'smeshariki-watched.json': { content: JSON.stringify([...watched]) },
+          'smeshariki-watched-dates.json': { content: JSON.stringify(watched_dates) },
           'smeshariki-liked.json': { content: JSON.stringify([...liked]) }
         }
       })
@@ -379,10 +383,15 @@ async function loadFromGist() {
     if (!res.ok) return;
     const data = await res.json();
     const wContent = data.files['smeshariki-watched.json']?.content;
+    const dContent = data.files['smeshariki-watched-dates.json']?.content;
     const lContent = data.files['smeshariki-liked.json']?.content;
     if (wContent) {
       watched = new Set(JSON.parse(wContent));
       localStorage.setItem(WKEY, JSON.stringify([...watched]));
+    }
+    if (dContent) {
+      watched_dates = JSON.parse(dContent);
+      localStorage.setItem(DKEY, JSON.stringify(watched_dates));
     }
     if (lContent) {
       liked = new Set(JSON.parse(lContent));
@@ -394,8 +403,17 @@ async function loadFromGist() {
 function toggleWatched(e) {
   const k = epKey(e);
   const wasWatched = watched.has(k);
-  wasWatched ? watched.delete(k) : watched.add(k);
+  if (wasWatched) {
+    watched.delete(k);
+    delete watched_dates[k];
+  } else {
+    watched.add(k);
+    // сохраняем дату в формате YYYY-MM-DD
+    const today = new Date().toISOString().split('T')[0];
+    watched_dates[k] = today;
+  }
   localStorage.setItem(WKEY, JSON.stringify([...watched]));
+  localStorage.setItem(DKEY, JSON.stringify(watched_dates));
   syncToGist();
   // if just marked as watched, ask if they liked it
   if (!wasWatched && watched.has(k)) {
@@ -559,8 +577,10 @@ const overlay = document.getElementById("overlay");
 function openModal(e) {
   const likeIcon = isLiked(e) ? " ❤️" : "";
   document.getElementById("mTitle").textContent = e.title + likeIcon;
+  const watchedDate = getWatchedDate(e);
+  const dateStr = watchedDate ? `просмотрено ${watchedDate}` : "";
   document.getElementById("mInfo").textContent =
-    [e.series, e.num ? `серия ${e.num}` : "", e.date].filter(Boolean).join(" · ");
+    [e.series, e.num ? `серия ${e.num}` : "", e.date, dateStr].filter(Boolean).join(" · ");
   document.getElementById("mTags").innerHTML = e.cats.map((c,i) => {
     const cat = catById(c);
     return cat ? `<span class="tag ${i===0?"primary":""}">${cat.emoji} ${cat.name}</span>` : "";
