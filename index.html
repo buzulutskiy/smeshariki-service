@@ -42,7 +42,8 @@
   }
   .search {
     flex: 1 1 260px;
-    padding: 10px 16px;
+    height: 44px;
+    padding: 0 18px;
     border: 2px solid #e7dfd2;
     border-radius: 999px;
     font-size: 15px;
@@ -52,10 +53,11 @@
   }
   .search:focus { border-color: var(--accent); }
   select {
-    padding: 10px 14px;
+    height: 44px;
+    padding: 0 18px;
     border: 2px solid #e7dfd2;
     border-radius: 999px;
-    font-size: 14px;
+    font-size: 15px;
     background: var(--card);
     color: var(--ink);
     outline: none;
@@ -158,6 +160,41 @@
   }
   .tag.primary { background: var(--accent); color: #fff; }
 
+  /* stars rating */
+  .stars { display: inline-flex; gap: 3px; }
+  .stars .star {
+    background: none; border: none; padding: 0; cursor: pointer;
+    line-height: 1; color: #d9cfbf;
+    transition: color .1s, transform .1s;
+  }
+  .stars .star.filled { color: #ffb020; }
+  .stars .star:hover { transform: scale(1.18); }
+  .card-rating { color: #ffb020; letter-spacing: 1px; }
+  .card-heart { margin-right: 3px; }
+
+  /* tabs */
+  .tabs {
+    max-width: 1200px; margin: 18px auto 0; padding: 0 24px;
+    display: flex; gap: 8px; flex-wrap: wrap;
+  }
+  .tab {
+    border: none; background: var(--chip-bg); color: var(--ink);
+    padding: 10px 18px; border-radius: 999px; font-size: 15px; font-weight: 600;
+    cursor: pointer; transition: transform .1s, background .15s, color .15s;
+  }
+  .tab:hover { transform: translateY(-1px); }
+  .tab.active { background: var(--accent); color: #fff; }
+  .tab .n { font-size: 12px; font-weight: 700; opacity: .6; margin-left: 3px; }
+
+  /* like (heart) button */
+  .like-btn {
+    border: 2px solid #e0d8ca; background: transparent; color: var(--ink);
+    padding: 9px 18px; line-height: 1.2; border-radius: 999px;
+    font-size: 13.5px; font-weight: 600; cursor: pointer; transition: all .15s;
+  }
+  .like-btn:hover { border-color: #ff5a7a; }
+  .like-btn.on { border-color: #ff5a7a; background: #ffe0e6; color: #e0335a; }
+
   /* watched */
   .watch-btn {
     position: absolute;
@@ -182,7 +219,7 @@
   }
   .card.watched { opacity: .62; }
   .card.watched:hover { opacity: 1; }
-  .modal .watch-btn { position: static; width: auto; height: auto; border-radius: 999px; padding: 8px 16px; font-size: 13.5px; font-weight: 600; color: var(--muted); margin-bottom: 16px; }
+  .modal .watch-btn { position: static; width: auto; height: auto; border: 2px solid #e0d8ca; background: transparent; border-radius: 999px; padding: 9px 18px; line-height: 1.2; font-size: 13.5px; font-weight: 600; color: var(--muted); }
   .modal .watch-btn.on { color: #fff; }
 
   /* modal */
@@ -231,6 +268,7 @@
     .card p { color: #b8b0a3; }
     .tag { color: #b8b0a3; }
     .modal p { color: #cfc7ba; }
+    .like-btn.on { background: #4a2731; color: #ff9db0; }
   }
 </style>
 </head>
@@ -241,22 +279,19 @@
   <button id="settingsBtn" style="position: absolute; top: 20px; right: 24px; background: none; border: none; font-size: 20px; cursor: pointer; opacity: .6; transition: opacity .15s;" title="Синхронизация с GitHub">⚙️</button>
 </header>
 
+<nav class="tabs" id="tabs">
+  <button class="tab active" data-tab="catalog">📺 Каталог</button>
+  <button class="tab" data-tab="favorites">⭐ Любимые <span class="n" id="favCount"></span></button>
+  <button class="tab" data-tab="history">🕐 История <span class="n" id="histCount"></span></button>
+</nav>
+
 <div class="controls">
   <input class="search" id="search" type="search" placeholder="Поиск по названию и синопсису…">
-  <select id="seriesFilter"><option value="">Все сериалы</option></select>
-  <select id="sortOrder">
-    <option value="date">По дате выхода</option>
-    <option value="default">По номеру серии</option>
-    <option value="title">По алфавиту</option>
-  </select>
-  <select id="watchedFilter">
-    <option value="">Все серии</option>
-    <option value="yes">Просмотренные</option>
-    <option value="no">Непросмотренные</option>
-  </select>
+  <select id="catFilter"><option value="">Все разделы</option></select>
 </div>
 
-<div class="chips" id="chips"></div>
+<div class="chips" id="subchips" style="display:none"></div>
+
 <div class="meta-line">
   <span id="counter"></span>
   <button class="random-btn" id="randomBtn">🎲 Случайная непросмотренная</button>
@@ -265,11 +300,11 @@
 
 <div class="overlay" id="pollOverlay">
   <div class="modal" style="max-width: 400px; text-align: center;">
-    <p style="font-size: 18px; font-weight: 700; margin-bottom: 20px;" id="pollTitle"></p>
-    <div style="display: flex; gap: 12px; justify-content: center;">
-      <button id="likeBtn" style="background: var(--accent); color: #fff; border: none; padding: 12px 24px; border-radius: 12px; font-weight: 600; cursor: pointer; font-size: 16px;"></button>
-      <button id="pollSkipBtn" style="background: transparent; border: 2px solid #e0d8ca; color: var(--ink); padding: 10px 20px; border-radius: 12px; font-weight: 600; cursor: pointer;">Пропустить</button>
-    </div>
+    <p style="font-size: 18px; font-weight: 700; margin-bottom: 4px;" id="pollTitle"></p>
+    <p style="color: var(--muted); font-size: 13.5px; margin-bottom: 16px;">Как тебе серия?</p>
+    <div id="pollStars" class="stars" style="justify-content: center; margin-bottom: 16px; font-size: 36px; gap: 8px;"></div>
+    <div style="margin-bottom: 18px;"><button class="like-btn" id="pollLike"></button></div>
+    <button id="pollDoneBtn" style="background: var(--accent); color: #fff; border: none; padding: 10px 24px; border-radius: 12px; font-weight: 600; cursor: pointer;">Готово</button>
   </div>
 </div>
 
@@ -311,49 +346,102 @@
     <h2 id="mTitle"></h2>
     <div class="info" id="mInfo"></div>
     <div class="tags" id="mTags"></div>
-    <div style="display: flex; gap: 10px; margin-bottom: 16px;">
+    <div style="display: flex; gap: 12px; align-items: center; margin-bottom: 16px; flex-wrap: wrap;">
       <button class="watch-btn" id="mWatch"></button>
-      <button id="mLike" style="flex: 1; border: 2px solid #e0d8ca; background: transparent; color: var(--ink); padding: 8px 16px; border-radius: 999px; font-size: 14px; font-weight: 600; cursor: pointer; transition: all .15s;">💭 Зацепила?</button>
+      <button class="like-btn" id="mLike"></button>
+      <div style="display: flex; align-items: center; gap: 8px;">
+        <span style="font-size: 13.5px; color: var(--muted);">Оценка:</span>
+        <div id="mStars" class="stars" style="font-size: 26px; gap: 5px;"></div>
+      </div>
     </div>
     <div id="mEssence"></div>
     <p id="mPlot"></p>
   </div>
 </div>
 
-<script src="data.js"></script>
+<script src="data.js?v=4"></script>
 <script>
 const CATS = window.CATEGORIES;
 const EPS = window.EPISODES;
+const SUBCATS = window.SUBCATS || {};
 
 // load persisted state from localStorage
 const SKEY = "smeshariki-state";
 const saved = JSON.parse(localStorage.getItem(SKEY) || "{}");
-const state = { cat: saved.cat || "", q: saved.q || "", series: saved.series || "", sort: saved.sort || "date", watched: saved.watched || "", liked: saved.liked || false };
+const state = { tab: saved.tab || "catalog", cat: saved.cat || "", sub: saved.sub || "", q: saved.q || "" };
 
 function saveState() {
-  localStorage.setItem(SKEY, JSON.stringify({cat: state.cat, q: state.q, series: state.series, sort: state.sort, watched: state.watched, liked: state.liked}));
+  localStorage.setItem(SKEY, JSON.stringify({tab: state.tab, cat: state.cat, sub: state.sub, q: state.q}));
 }
 
 // watched marks + likes + dates — persist in localStorage + sync to GitHub Gist
 const WKEY = "smeshariki-watched";
 const DKEY = "smeshariki-watched-dates";
 const LKEY = "smeshariki-liked";
+const RKEY = "smeshariki-ratings";
 const GKEY = "smeshariki-github";
 let watched = new Set(JSON.parse(localStorage.getItem(WKEY) || "[]"));
 let watched_dates = JSON.parse(localStorage.getItem(DKEY) || "{}"); // {"key": "2026-07-24"}
 let liked = new Set(JSON.parse(localStorage.getItem(LKEY) || "[]"));
+let ratings = JSON.parse(localStorage.getItem(RKEY) || "{}"); // {"key": 1..5}
 let github = JSON.parse(localStorage.getItem(GKEY) || "{}"); // {token, gistId}
 let lastToggled = null; // для быстрого опроса
 
 function epKey(e) { return `${e.series}|${e.num}|${e.title}`; }
 function isWatched(e) { return watched.has(epKey(e)); }
 function getWatchedDate(e) { return watched_dates[epKey(e)] || null; }
-function isLiked(e) { return liked.has(epKey(e)); }
+function getRating(e) { return ratings[epKey(e)] || 0; }
+function isLiked(e) { return liked.has(epKey(e)); } // «любимые» — отдельно от оценки
 function toggleLike(e) {
   const k = epKey(e);
   liked.has(k) ? liked.delete(k) : liked.add(k);
   localStorage.setItem(LKEY, JSON.stringify([...liked]));
   syncToGist();
+}
+function setRating(e, n) {
+  const k = epKey(e);
+  if (getRating(e) === n) n = 0; // клик по той же звезде снимает оценку
+  if (n > 0) {
+    ratings[k] = n;
+    // оценка подразумевает, что серия просмотрена
+    if (!watched.has(k)) {
+      watched.add(k);
+      watched_dates[k] = new Date().toISOString().split('T')[0];
+      localStorage.setItem(WKEY, JSON.stringify([...watched]));
+      localStorage.setItem(DKEY, JSON.stringify(watched_dates));
+    }
+  } else {
+    delete ratings[k];
+  }
+  localStorage.setItem(RKEY, JSON.stringify(ratings));
+  syncToGist();
+}
+
+// строим интерактивный ряд из 5 звёзд внутри container
+function buildStars(container, e, opts = {}) {
+  container.innerHTML = "";
+  container.classList.add("stars");
+  const paint = n => [...container.children].forEach((b, i) => {
+    const on = (i + 1) <= n;
+    b.classList.toggle("filled", on);
+    b.textContent = on ? "★" : "☆";
+  });
+  for (let i = 1; i <= 5; i++) {
+    const b = document.createElement("button");
+    b.className = "star";
+    b.type = "button";
+    b.title = i + "★";
+    b.onmouseenter = () => paint(i);
+    b.onmouseleave = () => paint(getRating(e));
+    b.onclick = ev => {
+      ev.stopPropagation();
+      setRating(e, i);
+      paint(getRating(e));
+      if (opts.onPick) opts.onPick(getRating(e));
+    };
+    container.appendChild(b);
+  }
+  paint(getRating(e));
 }
 
 async function syncToGist() {
@@ -366,7 +454,8 @@ async function syncToGist() {
         files: {
           'smeshariki-watched.json': { content: JSON.stringify([...watched]) },
           'smeshariki-watched-dates.json': { content: JSON.stringify(watched_dates) },
-          'smeshariki-liked.json': { content: JSON.stringify([...liked]) }
+          'smeshariki-liked.json': { content: JSON.stringify([...liked]) },
+          'smeshariki-ratings.json': { content: JSON.stringify(ratings) }
         }
       })
     });
@@ -385,6 +474,7 @@ async function loadFromGist() {
     const wContent = data.files['smeshariki-watched.json']?.content;
     const dContent = data.files['smeshariki-watched-dates.json']?.content;
     const lContent = data.files['smeshariki-liked.json']?.content;
+    const rContent = data.files['smeshariki-ratings.json']?.content;
     if (wContent) {
       watched = new Set(JSON.parse(wContent));
       localStorage.setItem(WKEY, JSON.stringify([...watched]));
@@ -396,6 +486,10 @@ async function loadFromGist() {
     if (lContent) {
       liked = new Set(JSON.parse(lContent));
       localStorage.setItem(LKEY, JSON.stringify([...liked]));
+    }
+    if (rContent) {
+      ratings = JSON.parse(rContent);
+      localStorage.setItem(RKEY, JSON.stringify(ratings));
     }
   } catch (e) { console.warn('Gist load error:', e.message); }
 }
@@ -422,82 +516,83 @@ function toggleWatched(e) {
   }
 }
 
+function closePoll() {
+  document.getElementById("pollOverlay").classList.remove("open");
+  document.body.style.overflow = "";
+}
 function openQuickPoll(e) {
-  const k = epKey(e);
-  document.getElementById("pollTitle").textContent = `«${e.title}» зацепила?`;
-  const likeBtn = document.getElementById("likeBtn");
-  likeBtn.textContent = isLiked(e) ? "❤️ Зацепила!" : "💭 Зацепила?";
+  document.getElementById("pollTitle").textContent = `«${e.title}»`;
+  buildStars(document.getElementById("pollStars"), e, { onPick: () => render() });
+  const pl = document.getElementById("pollLike");
+  const paintPollLike = () => {
+    const on = isLiked(e);
+    pl.classList.toggle("on", on);
+    pl.textContent = on ? "❤️ В любимых" : "🤍 В любимые";
+  };
+  paintPollLike();
+  pl.onclick = () => { toggleLike(e); paintPollLike(); render(); };
   document.getElementById("pollOverlay").classList.add("open");
   document.body.style.overflow = "hidden";
-  likeBtn.onclick = () => {
-    toggleLike(e);
-    document.getElementById("pollOverlay").classList.remove("open");
-    document.body.style.overflow = "";
-    render();
-  };
-  document.getElementById("pollSkipBtn").onclick = () => {
-    document.getElementById("pollOverlay").classList.remove("open");
-    document.body.style.overflow = "";
-  };
+  document.getElementById("pollDoneBtn").onclick = () => { closePoll(); render(); };
 }
 
-const chipsEl = document.getElementById("chips");
 const gridEl = document.getElementById("grid");
 const counterEl = document.getElementById("counter");
 const searchEl = document.getElementById("search");
-const seriesEl = document.getElementById("seriesFilter");
-const sortEl = document.getElementById("sortOrder");
+const catEl = document.getElementById("catFilter");
+const subchipsEl = document.getElementById("subchips");
+const tabsEl = document.getElementById("tabs");
+const randomBtn = document.getElementById("randomBtn");
 
-// category chips
 function catCount(cid) { return EPS.filter(e => e.cats.includes(cid)).length; }
-const likedCount = () => EPS.filter(isLiked).length;
 
-const allChip = document.createElement("button");
-allChip.className = "chip" + (!state.cat ? " active" : "");
-allChip.innerHTML = `Все <span class="n">${EPS.length}</span>`;
-allChip.onclick = () => { state.cat = ""; saveState(); render(); };
-chipsEl.appendChild(allChip);
+// tabs
+tabsEl.querySelectorAll(".tab").forEach(btn => {
+  btn.onclick = () => { state.tab = btn.dataset.tab; saveState(); render(); };
+});
 
-const likedChip = document.createElement("button");
-likedChip.className = "chip" + (state.liked ? " active" : "");
-likedChip.innerHTML = `❤️ Любимые <span class="n">${likedCount()}</span>`;
-likedChip.onclick = () => { state.liked = !state.liked; state.cat = ""; saveState(); render(); };
-chipsEl.appendChild(likedChip);
+// category select (только для каталога)
 for (const c of CATS) {
-  const b = document.createElement("button");
-  b.className = "chip" + (state.cat === c.id ? " active" : "");
-  b.dataset.cat = c.id;
-  b.innerHTML = `${c.emoji} ${c.name} <span class="n">${catCount(c.id)}</span>`;
-  b.onclick = () => { state.cat = state.cat === c.id ? "" : c.id; saveState(); render(); };
-  chipsEl.appendChild(b);
-}
-
-// series dropdown
-const seriesNames = [...new Set(EPS.map(e => e.series))].filter(Boolean);
-for (const s of seriesNames) {
   const o = document.createElement("option");
-  o.value = s; o.textContent = s;
-  seriesEl.appendChild(o);
+  o.value = c.id;
+  o.textContent = `${c.emoji} ${c.name} (${catCount(c.id)})`;
+  catEl.appendChild(o);
 }
-seriesEl.value = state.series;
-seriesEl.onchange = () => { state.series = seriesEl.value; saveState(); render(); };
-const watchedEl = document.getElementById("watchedFilter");
-watchedEl.value = state.watched;
-watchedEl.onchange = () => { state.watched = watchedEl.value; saveState(); render(); };
+catEl.value = state.cat;
+catEl.onchange = () => { state.cat = catEl.value; state.sub = ""; saveState(); render(); };
 
-// random button
-document.getElementById("randomBtn").onclick = () => {
+// под-фильтры подразделов (пока только у «Философии»)
+function subCount(cid, sid) { return EPS.filter(e => e.cats.includes(cid) && e.sub === sid).length; }
+function buildSubchips() {
+  subchipsEl.innerHTML = "";
+  const subs = SUBCATS[state.cat];
+  if (!subs) return;
+  const all = document.createElement("button");
+  all.className = "chip" + (!state.sub ? " active" : "");
+  all.innerHTML = `Все <span class="n">${EPS.filter(e => e.cats.includes(state.cat)).length}</span>`;
+  all.onclick = () => { state.sub = ""; saveState(); render(); };
+  subchipsEl.appendChild(all);
+  for (const s of subs) {
+    const b = document.createElement("button");
+    b.className = "chip" + (state.sub === s.id ? " active" : "");
+    b.innerHTML = `${s.emoji} ${s.name} <span class="n">${subCount(state.cat, s.id)}</span>`;
+    b.onclick = () => { state.sub = state.sub === s.id ? "" : s.id; saveState(); render(); };
+    subchipsEl.appendChild(b);
+  }
+}
+
+// search
+searchEl.value = state.q;
+searchEl.oninput = () => { state.q = searchEl.value.trim().toLowerCase(); saveState(); render(); };
+
+// random button — случайная непросмотренная (учитывает выбранный раздел)
+randomBtn.onclick = () => {
   let list = EPS;
   if (state.cat) list = list.filter(e => e.cats.includes(state.cat));
   list = list.filter(e => !isWatched(e));
-  if (!list.length) { alert("Нет непросмотренных серий в этой категории!"); return; }
-  const random = list[Math.floor(Math.random() * list.length)];
-  openModal(random);
+  if (!list.length) { alert("Нет непросмотренных серий!"); return; }
+  openModal(list[Math.floor(Math.random() * list.length)]);
 };
-sortEl.value = state.sort;
-sortEl.onchange = () => { state.sort = sortEl.value; saveState(); render(); };
-searchEl.value = state.q;
-searchEl.oninput = () => { state.q = searchEl.value.trim().toLowerCase(); saveState(); render(); };
 
 function catById(id) { return CATS.find(c => c.id === id); }
 
@@ -509,53 +604,90 @@ function essenceHTML(e) {
   return `<div class="essence">${out}</div>`;
 }
 
-function filtered() {
-  let list = EPS;
-  if (state.liked) list = list.filter(isLiked);  // фильтр по лайкам
-  if (state.cat) list = list.filter(e => e.cats.includes(state.cat));
-  if (state.series) list = list.filter(e => e.series === state.series);
-  if (state.q) list = list.filter(e =>
-    e.title.toLowerCase().includes(state.q) || e.plot.toLowerCase().includes(state.q) ||
+function matchesSearch(e) {
+  if (!state.q) return true;
+  return e.title.toLowerCase().includes(state.q) || e.plot.toLowerCase().includes(state.q) ||
     (e.th || []).some(t => t.toLowerCase().includes(state.q)) ||
     (e.ref || "").toLowerCase().includes(state.q) ||
-    (e.adult || "").toLowerCase().includes(state.q));
-  if (state.watched === "yes") list = list.filter(isWatched);
-  if (state.watched === "no") list = list.filter(e => !isWatched(e));
-  list = [...list];
-  if (state.sort === "title") list.sort((a,b) => a.title.localeCompare(b.title, "ru"));
-  else if (state.sort === "date") list.sort((a,b) => a.ts - b.ts);
-  // просмотренные опускаются в конец (стабильно, внутри своего порядка)
-  list.sort((a,b) => (isWatched(a) ? 1 : 0) - (isWatched(b) ? 1 : 0));
+    (e.adult || "").toLowerCase().includes(state.q);
+}
+
+function filtered() {
+  let list = EPS.filter(matchesSearch);
+  if (state.tab === "favorites") {
+    // любимые (❤️) — по дате выхода
+    list = [...list.filter(isLiked)].sort((a,b) => a.ts - b.ts);
+  } else if (state.tab === "history") {
+    // история просмотров — свежие сверху по дате просмотра
+    list = [...list.filter(isWatched)].sort((a,b) => {
+      const da = getWatchedDate(a) || "", db = getWatchedDate(b) || "";
+      if (da !== db) return db.localeCompare(da);
+      return b.ts - a.ts;
+    });
+  } else {
+    // каталог — по дате выхода, просмотренные опускаются вниз
+    if (state.cat) list = list.filter(e => e.cats.includes(state.cat));
+    if (state.cat && state.sub && SUBCATS[state.cat]) list = list.filter(e => e.sub === state.sub);
+    list = [...list].sort((a,b) => a.ts - b.ts);
+    list.sort((a,b) => (isWatched(a) ? 1 : 0) - (isWatched(b) ? 1 : 0));
+  }
   return list;
 }
 
 function render() {
-  document.querySelectorAll(".chip").forEach(ch => {
-    ch.classList.toggle("active", (ch.dataset.cat || "") === state.cat);
-  });
+  // активная вкладка + счётчики
+  tabsEl.querySelectorAll(".tab").forEach(b => b.classList.toggle("active", b.dataset.tab === state.tab));
+  document.getElementById("favCount").textContent = EPS.filter(isLiked).length || "";
+  document.getElementById("histCount").textContent = watched.size || "";
+
+  // селект разделов и «случайная» — только в каталоге
+  const inCatalog = state.tab === "catalog";
+  catEl.style.display = inCatalog ? "" : "none";
+  randomBtn.style.display = inCatalog ? "" : "none";
+
+  // под-фильтры подразделов — только в каталоге и только для раздела, где они есть
+  const hasSubs = inCatalog && !!SUBCATS[state.cat];
+  subchipsEl.style.display = hasSubs ? "flex" : "none";
+  if (hasSubs) buildSubchips();
+
   const list = filtered();
-  counterEl.textContent = `Показано серий: ${list.length} · просмотрено ${watched.size} из ${EPS.length}`;
-  // update random button
-  let unwatched = EPS;
-  if (state.cat) unwatched = unwatched.filter(e => e.cats.includes(state.cat));
-  unwatched = unwatched.filter(e => !isWatched(e));
-  document.getElementById("randomBtn").disabled = !unwatched.length;
-  document.getElementById("randomBtn").title = unwatched.length ? "" : "Все серии в этой категории просмотрены";
+
+  if (state.tab === "favorites") {
+    counterEl.textContent = `Любимых серий: ${list.length}`;
+  } else if (state.tab === "history") {
+    counterEl.textContent = `В истории: ${list.length} · всего просмотрено ${watched.size} из ${EPS.length}`;
+  } else {
+    counterEl.textContent = `Показано: ${list.length} · просмотрено ${watched.size} из ${EPS.length}`;
+    let unwatched = EPS;
+    if (state.cat) unwatched = unwatched.filter(e => e.cats.includes(state.cat));
+    unwatched = unwatched.filter(e => !isWatched(e));
+    randomBtn.disabled = !unwatched.length;
+    randomBtn.title = unwatched.length ? "" : "Все серии в этом разделе просмотрены";
+  }
+
   gridEl.innerHTML = "";
   if (!list.length) {
-    gridEl.innerHTML = `<div class="empty">Ничего не нашлось — попробуй другую категорию или запрос</div>`;
+    const msg = state.tab === "favorites" ? "Пока нет любимых серий — жми ❤️ «В любимые» в карточке серии"
+      : state.tab === "history" ? "История пуста — отмечай серии просмотренными"
+      : "Ничего не нашлось — попробуй другой раздел или запрос";
+    gridEl.innerHTML = `<div class="empty">${msg}</div>`;
     return;
   }
   const frag = document.createDocumentFragment();
   for (const e of list) {
     const card = document.createElement("div");
-    card.className = "card" + (isWatched(e) ? " watched" : "");
-    const info = [e.series, e.num ? `серия ${e.num}` : "", e.date].filter(Boolean).join(" · ");
-    const likeIcon = isLiked(e) ? " ❤️" : "";
+    // затемняем просмотренные только в каталоге (в истории они все просмотрены)
+    card.className = "card" + (inCatalog && isWatched(e) ? " watched" : "");
+    const parts = [e.series, e.num ? `серия ${e.num}` : "", e.date];
+    if (state.tab === "history" && getWatchedDate(e)) parts.push(`👁 ${getWatchedDate(e)}`);
+    const info = parts.filter(Boolean).join(" · ");
+    const rating = getRating(e);
+    const ratingStr = rating ? ` · <span class="card-rating">${"★".repeat(rating)}</span>` : "";
+    const heart = isLiked(e) ? `<span class="card-heart">❤️</span>` : "";
     card.innerHTML = `
       <button class="watch-btn" title="Отметить просмотренной">✓</button>
-      <h3>${e.title}${likeIcon}</h3>
-      <div class="info">${info}</div>
+      <h3>${heart}${e.title}</h3>
+      <div class="info">${info}${ratingStr}</div>
       ${essenceHTML(e) || `<p>${e.plot}</p>`}
       <div class="tags">${e.cats.map((c,i) => {
         const cat = catById(c);
@@ -575,8 +707,7 @@ function render() {
 // modal
 const overlay = document.getElementById("overlay");
 function openModal(e) {
-  const likeIcon = isLiked(e) ? " ❤️" : "";
-  document.getElementById("mTitle").textContent = e.title + likeIcon;
+  document.getElementById("mTitle").textContent = e.title;
   const watchedDate = getWatchedDate(e);
   const dateStr = watchedDate ? `просмотрено ${watchedDate}` : "";
   document.getElementById("mInfo").textContent =
@@ -595,14 +726,15 @@ function openModal(e) {
     mw.textContent = on ? "✓ Просмотрено" : "Отметить просмотренной";
   }
   function paintLike() {
-    const liked = isLiked(e);
-    ml.style.borderColor = liked ? "var(--accent)" : "#e0d8ca";
-    ml.style.background = liked ? "#ffe0cc" : "transparent";
-    ml.style.color = liked ? "var(--accent)" : "var(--ink)";
-    ml.textContent = liked ? "❤️ Зацепила!" : "💭 Зацепила?";
+    const on = isLiked(e);
+    ml.classList.toggle("on", on);
+    ml.textContent = on ? "❤️ В любимых" : "🤍 В любимые";
   }
   paintWatch();
   paintLike();
+  buildStars(document.getElementById("mStars"), e, {
+    onPick: () => { paintWatch(); render(); }
+  });
   mw.onclick = () => { toggleWatched(e); paintWatch(); render(); };
   ml.onclick = () => { toggleLike(e); paintLike(); render(); };
   overlay.classList.add("open");
