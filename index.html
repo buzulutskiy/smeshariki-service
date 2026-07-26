@@ -559,31 +559,43 @@ tabsEl.querySelectorAll(".tab").forEach(btn => {
   btn.onclick = () => { state.tab = btn.dataset.tab; saveState(); render(); };
 });
 
-// category select (только для каталога)
+// category select (только для каталога). Число = сколько осталось непросмотренных.
 for (const c of CATS) {
   const o = document.createElement("option");
   o.value = c.id;
-  o.textContent = `${c.emoji} ${c.name} (${catCount(c.id)})`;
+  o.dataset.cat = c.id;
+  o.textContent = `${c.emoji} ${c.name}`;
   catEl.appendChild(o);
 }
 catEl.value = state.cat;
 catEl.onchange = () => { state.cat = catEl.value; state.sub = ""; saveState(); render(); };
 
+function unwatchedInCat(cid) { return EPS.filter(e => e.cats.includes(cid) && !isWatched(e)).length; }
+function unwatchedInSub(cid, sid) { return EPS.filter(e => e.cats.includes(cid) && e.sub === sid && !isWatched(e)).length; }
+
+// обновляем счётчики в селекте — уменьшаются по мере просмотра
+function updateCatOptions() {
+  for (const o of catEl.options) {
+    if (!o.dataset.cat) continue;
+    const c = catById(o.dataset.cat);
+    o.textContent = `${c.emoji} ${c.name} (${unwatchedInCat(c.id)})`;
+  }
+}
+
 // под-фильтры подразделов (пока только у «Философии»)
-function subCount(cid, sid) { return EPS.filter(e => e.cats.includes(cid) && e.sub === sid).length; }
 function buildSubchips() {
   subchipsEl.innerHTML = "";
   const subs = SUBCATS[state.cat];
   if (!subs) return;
   const all = document.createElement("button");
   all.className = "chip" + (!state.sub ? " active" : "");
-  all.innerHTML = `Все <span class="n">${EPS.filter(e => e.cats.includes(state.cat)).length}</span>`;
+  all.innerHTML = `Все <span class="n">${unwatchedInCat(state.cat)}</span>`;
   all.onclick = () => { state.sub = ""; saveState(); render(); };
   subchipsEl.appendChild(all);
   for (const s of subs) {
     const b = document.createElement("button");
     b.className = "chip" + (state.sub === s.id ? " active" : "");
-    b.innerHTML = `${s.emoji} ${s.name} <span class="n">${subCount(state.cat, s.id)}</span>`;
+    b.innerHTML = `${s.emoji} ${s.name} <span class="n">${unwatchedInSub(state.cat, s.id)}</span>`;
     b.onclick = () => { state.sub = state.sub === s.id ? "" : s.id; saveState(); render(); };
     subchipsEl.appendChild(b);
   }
@@ -647,6 +659,7 @@ function render() {
   tabsEl.querySelectorAll(".tab").forEach(b => b.classList.toggle("active", b.dataset.tab === state.tab));
   document.getElementById("favCount").textContent = EPS.filter(isLiked).length || "";
   document.getElementById("histCount").textContent = watched.size || "";
+  updateCatOptions();
 
   // селект разделов и «случайная» — только в каталоге
   const inCatalog = state.tab === "catalog";
@@ -665,12 +678,16 @@ function render() {
   } else if (state.tab === "history") {
     counterEl.textContent = `В истории: ${list.length} · всего просмотрено ${watched.size} из ${EPS.length}`;
   } else {
-    counterEl.textContent = `Показано: ${list.length} · просмотрено ${watched.size} из ${EPS.length}`;
-    let unwatched = EPS;
-    if (state.cat) unwatched = unwatched.filter(e => e.cats.includes(state.cat));
-    unwatched = unwatched.filter(e => !isWatched(e));
-    randomBtn.disabled = !unwatched.length;
-    randomBtn.title = unwatched.length ? "" : "Все серии в этом разделе просмотрены";
+    // прогресс в рамках текущего раздела (+подраздела)
+    let universe = EPS;
+    if (state.cat) universe = universe.filter(e => e.cats.includes(state.cat));
+    if (state.cat && state.sub && SUBCATS[state.cat]) universe = universe.filter(e => e.sub === state.sub);
+    const seen = universe.filter(isWatched).length;
+    const pct = universe.length ? Math.round(seen / universe.length * 100) : 0;
+    counterEl.textContent = `Показано: ${list.length} · просмотрено ${seen} из ${universe.length} (${pct}%)`;
+    const catLeft = (state.cat ? EPS.filter(e => e.cats.includes(state.cat)) : EPS).filter(e => !isWatched(e)).length;
+    randomBtn.disabled = !catLeft;
+    randomBtn.title = catLeft ? "" : "Все серии в этом разделе просмотрены";
   }
 
   gridEl.innerHTML = "";

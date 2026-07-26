@@ -1,6 +1,7 @@
 // Service worker для офлайн-работы.
-// Бампай CACHE и версию data.js вместе (см. index.html ?v=N), чтобы обновление подхватилось.
-const CACHE = 'smesh-v4';
+// data.js версионируется через ?v=N (см. index.html) — при обновлении данных бампай и там, и в ASSETS.
+// index.html обновляется сам: навигация идёт network-first (свежий html онлайн, кэш — офлайн).
+const CACHE = 'smesh-v5';
 const ASSETS = [
   './',
   './index.html',
@@ -35,9 +36,18 @@ self.addEventListener('fetch', (e) => {
   // пусть идут в сеть напрямую и падают штатно, когда сети/VPN нет.
   if (url.origin !== location.origin) return;
 
-  // Навигация → отдаём оболочку из кэша (запуск без сети).
+  // Навигация → network-first: онлайн берём свежий html и обновляем кэш,
+  // офлайн/без VPN — отдаём оболочку из кэша.
   if (req.mode === 'navigate') {
-    e.respondWith(caches.match('./index.html').then((r) => r || fetch(req)));
+    e.respondWith(
+      fetch(req)
+        .then((resp) => {
+          const copy = resp.clone();
+          caches.open(CACHE).then((c) => c.put('./index.html', copy));
+          return resp;
+        })
+        .catch(() => caches.match('./index.html').then((r) => r || caches.match('./')))
+    );
     return;
   }
 
